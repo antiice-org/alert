@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:developer';
 
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:json_annotation/json_annotation.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'endpoints.dart';
@@ -22,6 +23,7 @@ class _AlertViewState extends State<AlertView> {
   @override
   void initState() {
     super.initState();
+    _getPermissions();
     _channel = WebSocketChannel.connect(Uri.parse(baseUrl));
     _channel?.stream.listen((message) {
       final body = jsonDecode(message);
@@ -29,12 +31,21 @@ class _AlertViewState extends State<AlertView> {
     });
   }
 
+  void _getPermissions() async {
+    final permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      final _ = await Geolocator.requestPermission();
+    }
+  }
+
   void _showAlert(Alert alert) {
     showDialog(
       context: _context!,
       builder: (context) => AlertDialog(
         title: Center(child: Text('ICE Incoming')),
-        content: Text(alert.message ?? 'incoming'),
+        content: Text(
+          'message: ${alert.message ?? 'incoming'}\nlocation: ${alert.location ?? 'unknown'}',
+        ),
         actions: [
           TextButton(
             onPressed: () {
@@ -47,9 +58,16 @@ class _AlertViewState extends State<AlertView> {
     );
   }
 
-  void _sendAlert() {
-    log('Sending alert');
-    _channel?.sink.add(Alert(message: 'incoming', location: 'test').toJson());
+  void _sendAlert() async {
+    final location = await _getLocation();
+    _channel?.sink.add(
+      jsonEncode(Alert(message: 'incoming', location: location).toJson()),
+    );
+  }
+
+  Future<String> _getLocation() async {
+    final location = await Geolocator.getCurrentPosition();
+    return '${location.latitude},${location.longitude}';
   }
 
   @override
