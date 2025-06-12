@@ -1,7 +1,8 @@
 import 'dart:convert';
-import 'dart:developer';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_osm_plugin/flutter_osm_plugin.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:json_annotation/json_annotation.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
@@ -23,7 +24,9 @@ class _AlertViewState extends State<AlertView> {
   @override
   void initState() {
     super.initState();
-    _getPermissions();
+    if (Platform.isAndroid || Platform.isIOS) {
+      _getPermissions();
+    }
     _channel = WebSocketChannel.connect(Uri.parse(baseUrl));
     _channel?.stream.listen((message) {
       final body = jsonDecode(message);
@@ -41,20 +44,48 @@ class _AlertViewState extends State<AlertView> {
   void _showAlert(Alert alert) {
     showDialog(
       context: _context!,
-      builder: (context) => AlertDialog(
-        title: Center(child: Text('ICE Incoming')),
-        content: Text(
-          'message: ${alert.message ?? 'incoming'}\nlocation: ${alert.location ?? 'unknown'}',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-            },
-            child: Text('OK'),
+      builder: (context) {
+        final location = alert.location!.split(',');
+        return AlertDialog(
+          title: Center(child: Text('ICE Incoming')),
+          content: SizedBox(
+            height: MediaQuery.of(context).size.height * 0.8,
+            width: MediaQuery.of(context).size.width * 0.8,
+            child: OSMFlutter(
+              controller: MapController(
+                initPosition: GeoPoint(
+                  latitude: double.parse(location[0]),
+                  longitude: double.parse(location[1]),
+                ),
+              ),
+              osmOption: OSMOption(
+                zoomOption: ZoomOption(initZoom: 17),
+                userLocationMarker: UserLocationMaker(
+                  personMarker: const MarkerIcon(
+                    icon: Icon(
+                      Icons.location_history_rounded,
+                      color: Colors.red,
+                      size: 48,
+                    ),
+                  ),
+                  directionArrowMarker: const MarkerIcon(
+                    icon: Icon(Icons.double_arrow, size: 48),
+                  ),
+                ),
+              ),
+            ),
           ),
-        ],
-      ),
+
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: Text('OK'),
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -66,8 +97,11 @@ class _AlertViewState extends State<AlertView> {
   }
 
   Future<String> _getLocation() async {
-    final location = await Geolocator.getCurrentPosition();
-    return '${location.latitude},${location.longitude}';
+    if (Platform.isAndroid || Platform.isIOS) {
+      final location = await Geolocator.getCurrentPosition();
+      return '${location.latitude},${location.longitude}';
+    }
+    return '0,0';
   }
 
   @override
@@ -86,10 +120,7 @@ class _AlertViewState extends State<AlertView> {
           child: Container(
             width: MediaQuery.of(context).size.width,
             height: MediaQuery.of(context).size.height,
-            decoration: BoxDecoration(
-              color: Colors.red,
-              borderRadius: BorderRadius.circular(10),
-            ),
+            decoration: BoxDecoration(color: Colors.red),
             child: Center(
               child: Text(
                 'Incoming',
