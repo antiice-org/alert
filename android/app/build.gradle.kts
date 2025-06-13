@@ -44,7 +44,6 @@ android {
         create("fdroid") {
             dimension = "deploy"
             signingConfig = null
-            applicationIdSuffix = ".fdroid"
         }
     }
 }
