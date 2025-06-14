@@ -37,15 +37,6 @@ android {
             signingConfig = signingConfigs.getByName("debug")
         }
     }
-
-    flavorDimensions += "deploy"
-
-    productFlavors {
-        create("fdroid") {
-            dimension = "deploy"
-            signingConfig = null
-        }
-    }
 }
 
 flutter {
